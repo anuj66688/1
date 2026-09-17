@@ -30,22 +30,25 @@ window.CodeAtlasApp = (function () {
      ======================================================================== */
   function updateAuthUI() {
     const session = window.CodeAtlasStore.getSession();
+    const isAdmin = window.CodeAtlasStore.isAdmin();
     const authContainers = document.querySelectorAll("[data-auth-slot]");
     authContainers.forEach(slot => {
       if (session) {
         slot.innerHTML = `
-          <a href="admin.html" data-route="admin" class="btn btn-ghost btn-sm font-mono" style="color:var(--accent-secondary);">
-            <span>[ADMIN CONSOLE]</span>
-          </a>
-          <a href="profile.html" data-route="user-profile" class="btn btn-secondary btn-sm" title="Developer Profile">
-            <span style="width:8px;height:8px;border-radius:50%;background:var(--status-success);"></span>
-            <span>${session.email.split("@")[0]}</span>
+          ${isAdmin ? `
+            <a href="admin.html" data-route="admin" class="btn btn-ghost btn-sm font-mono" style="color:var(--accent-primary);border:1px solid rgba(0,240,255,0.35);">
+              <span>[ADMIN CONSOLE]</span>
+            </a>
+          ` : ""}
+          <a href="profile.html" data-route="user-profile" class="btn btn-secondary btn-sm" title="Developer Telemetry Profile">
+            <span style="width:8px;height:8px;border-radius:50%;background:${isAdmin ? "var(--accent-primary)" : "var(--status-success)"};"></span>
+            <span>${escapeHtml(session.fullName || session.email.split("@")[0])}</span>
+            <span class="font-mono" style="font-size:0.65rem;color:var(--text-muted);text-transform:uppercase;">${isAdmin ? "ADMIN" : "DEV"}</span>
           </a>
           <button type="button" data-action="logout" class="btn btn-ghost btn-sm">Sign Out</button>
         `;
       } else {
         slot.innerHTML = `
-          <a href="admin.html" data-route="admin" class="btn btn-ghost btn-sm font-mono" style="font-size:0.75rem;">Admin Console</a>
           <a href="login.html" data-route="login" class="btn btn-secondary btn-sm">Sign In</a>
           <a href="atlas.html" data-route="atlas" class="btn btn-primary btn-sm">Explore Atlas</a>
         `;
@@ -760,77 +763,244 @@ window.CodeAtlasApp = (function () {
   /* ========================================================================
      ADMIN CONSOLE MODULE (/admin.html & #view-admin)
      ======================================================================== */
-  function renderAdminConsole() {
-    const langs = window.CodeAtlasStore.getLanguages();
-    const quizList = window.CodeAtlasStore.getQuizQuestions();
-    const activities = window.CodeAtlasStore.getActivities();
-    const settings = window.CodeAtlasStore.getSettings();
+  let currentAdminUsers = [];
+  let currentAdminLangs = [];
 
-    // Update KPI counters
-    const statLangs = document.getElementById("admin-stat-langs");
-    const statTimeline = document.getElementById("admin-stat-timeline");
-    const statQuiz = document.getElementById("admin-stat-quiz");
-    if (statLangs) statLangs.textContent = langs.length;
-    if (statTimeline) statTimeline.textContent = window.CODEATLAS_TIMELINE.length;
-    if (statQuiz) statQuiz.textContent = quizList.length;
+  async function renderAdminConsole() {
+    const accessDenied = document.getElementById("admin-access-denied");
+    const authorizedShell = document.getElementById("admin-authorized-shell");
+    const isAdmin = window.CodeAtlasStore.isAdmin();
 
-    // 1. Languages Table
+    if (!isAdmin) {
+      if (accessDenied) accessDenied.style.display = "block";
+      if (authorizedShell) authorizedShell.style.display = "none";
+      return;
+    }
+
+    if (accessDenied) accessDenied.style.display = "none";
+    if (authorizedShell) authorizedShell.style.display = "grid";
+
+    // 1. Fetch live metrics and stats
+    try {
+      const statsData = await window.CodeAtlasStore.fetchAdminStats();
+      const s = statsData.stats;
+      const statLangs = document.getElementById("admin-stat-langs");
+      const statTimeline = document.getElementById("admin-stat-timeline");
+      const statQuiz = document.getElementById("admin-stat-quiz");
+      const statUsers = document.getElementById("admin-stat-users");
+      const dbDesc = document.getElementById("admin-db-status-desc");
+      const dbBadge = document.getElementById("admin-db-badge");
+
+      if (statLangs) statLangs.textContent = s.languages;
+      if (statTimeline) statTimeline.textContent = s.timelineEvents;
+      if (statQuiz) statQuiz.textContent = s.quizQuestions;
+      if (statUsers) statUsers.textContent = s.registeredUsers;
+
+      if (dbDesc && statsData.dbConfig) {
+        dbDesc.textContent = `Database Engine: ${statsData.dbConfig.type.toUpperCase()} • PostgreSQL ${statsData.dbConfig.postgresVersion} • Row Level Security: ${statsData.dbConfig.rlsActive ? "Enforced" : "Configured"}`;
+      }
+      if (dbBadge && statsData.dbConfig) {
+        dbBadge.textContent = statsData.dbConfig.connected ? "SUPABASE POSTGRES ONLINE" : "SYSTEM HEALTHY";
+      }
+    } catch (e) {
+      console.warn("Telemetry stats loaded with fallback:", e.message);
+    }
+
+    // 2. Fetch and render languages table
+    try {
+      currentAdminLangs = await window.CodeAtlasStore.fetchLanguages();
+      renderAdminLanguagesTable(currentAdminLangs);
+    } catch (e) {
+      currentAdminLangs = window.CodeAtlasStore.getLanguages();
+      renderAdminLanguagesTable(currentAdminLangs);
+    }
+
+    // 3. Fetch and render quiz content
+    try {
+      const quizList = await window.CodeAtlasStore.fetchQuizQuestions();
+      renderAdminQuizList(quizList);
+    } catch (e) {
+      renderAdminQuizList(window.CodeAtlasStore.getQuizQuestions());
+    }
+
+    // 4. Fetch and render users table
+    try {
+      currentAdminUsers = await window.CodeAtlasStore.fetchAdminUsers();
+      renderAdminUsersTable(currentAdminUsers);
+    } catch (e) {
+      console.warn("User directory fetch:", e.message);
+    }
+
+    // 5. Fetch and render activity telemetry
+    try {
+      const activities = await window.CodeAtlasStore.fetchActivities();
+      renderAdminActivityTable(activities);
+    } catch (e) {
+      renderAdminActivityTable(window.CodeAtlasStore.getActivities());
+    }
+
+    // 6. Populate system settings
+    const titleInp = document.getElementById("admin-setting-title");
+    if (titleInp) {
+      const settings = window.CodeAtlasStore.getSettings();
+      if (settings && settings.siteTitle) titleInp.value = settings.siteTitle;
+    }
+  }
+
+  function renderAdminLanguagesTable(langs) {
     const langTbody = document.getElementById("admin-languages-tbody");
-    if (langTbody) {
-      langTbody.innerHTML = langs.map(l => `
+    if (!langTbody) return;
+
+    const filterVal = (document.getElementById("admin-lang-search")?.value || "").toLowerCase().trim();
+    const filtered = filterVal
+      ? langs.filter(l => l.name.toLowerCase().includes(filterVal) || l.category.toLowerCase().includes(filterVal) || (l.creator || "").toLowerCase().includes(filterVal))
+      : langs;
+
+    if (filtered.length === 0) {
+      langTbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted);">No language records matched your query.</td></tr>`;
+      return;
+    }
+
+    langTbody.innerHTML = filtered.map(l => `
+      <tr>
+        <td>
+          <div style="display:flex;align-items:center;gap:0.65rem;">
+            <span class="lang-mark" style="width:32px;height:32px;font-size:0.75rem;">${escapeHtml(l.mark || l.name.slice(0, 2))}</span>
+            <strong style="color:var(--text-primary);">${escapeHtml(l.name)}</strong>
+          </div>
+        </td>
+        <td class="font-mono">${escapeHtml(String(l.year))}</td>
+        <td><span class="ca-badge" data-cat="${escapeHtml(l.category)}">${escapeHtml(l.category)}</span></td>
+        <td>${escapeHtml(l.creator || (l.uses || []).slice(0, 2).join(", "))}</td>
+        <td>
+          <div style="display:flex;gap:0.4rem;">
+            <button type="button" class="btn btn-secondary btn-sm" data-open-lang="${escapeHtml(l.id)}">View</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-admin-edit-lang="${escapeHtml(l.id)}">Edit</button>
+            <button type="button" class="btn btn-ghost btn-sm" style="color:var(--status-danger);" data-admin-del-lang="${escapeHtml(l.id)}">Delete</button>
+          </div>
+        </td>
+      </tr>
+    `).join("");
+  }
+
+  function renderAdminUsersTable(users) {
+    const tbody = document.getElementById("admin-users-tbody");
+    if (!tbody) return;
+
+    const filterVal = (document.getElementById("admin-user-search")?.value || "").toLowerCase().trim();
+    const filtered = filterVal
+      ? users.filter(u => u.email.toLowerCase().includes(filterVal) || (u.full_name || "").toLowerCase().includes(filterVal))
+      : users;
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);">No registered users found.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = filtered.map(u => {
+      const isUserAdmin = u.role === "admin";
+      return `
         <tr>
-          <td><div style="display:flex;align-items:center;gap:0.65rem;"><span class="lang-mark" style="width:32px;height:32px;font-size:0.75rem;">${l.mark}</span><strong style="color:var(--text-primary);">${l.name}</strong></div></td>
-          <td class="font-mono">${l.year}</td>
-          <td><span class="ca-badge" data-cat="${l.category}">${l.category}</span></td>
-          <td>${(l.uses || []).slice(0, 2).join(", ")}</td>
+          <td>
+            <div style="display:flex;flex-direction:column;">
+              <strong style="color:var(--text-primary);">${escapeHtml(u.email)}</strong>
+              <span style="font-size:0.75rem;color:var(--text-muted);">${escapeHtml(u.full_name || "Anonymous Developer")}</span>
+            </div>
+          </td>
+          <td>
+            <span class="ca-badge" style="${isUserAdmin ? "border-color:var(--accent-primary);color:var(--accent-primary);" : ""}">
+              ${isUserAdmin ? "ADMIN" : "USER"}
+            </span>
+          </td>
+          <td>${escapeHtml(u.selected_path || "—")}</td>
+          <td class="font-mono">${escapeHtml(u.best_score || "—")}</td>
+          <td class="font-mono" style="font-size:0.75rem;">${escapeHtml(u.last_activity || "Recent")}</td>
           <td>
             <div style="display:flex;gap:0.4rem;">
-              <button type="button" class="btn btn-secondary btn-sm" data-open-lang="${l.id}">View</button>
-              <button type="button" class="btn btn-secondary btn-sm" data-admin-edit-lang="${l.id}">Edit</button>
-              <button type="button" class="btn btn-ghost btn-sm" style="color:var(--status-danger);" data-admin-del-lang="${l.id}">Delete</button>
+              <button type="button" class="btn btn-secondary btn-sm" data-admin-toggle-role="${escapeHtml(u.id)}" data-current-role="${escapeHtml(u.role)}">
+                ${isUserAdmin ? "Demote" : "Promote"}
+              </button>
+              <button type="button" class="btn btn-ghost btn-sm" style="color:var(--status-danger);" data-admin-del-user="${escapeHtml(u.id)}">
+                Delete
+              </button>
             </div>
           </td>
         </tr>
-      `).join("");
-    }
+      `;
+    }).join("");
+  }
 
-    // 2. Quiz Questions Manager
+  function renderAdminQuizList(quizList) {
     const quizContainer = document.getElementById("admin-quiz-list");
-    if (quizContainer) {
-      quizContainer.innerHTML = quizList.map((q, idx) => `
-        <div class="ca-card" style="margin-bottom:1rem;padding:1.25rem;">
-          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;">
-            <div>
-              <div class="font-mono" style="font-size:0.72rem;color:var(--accent-primary);margin-bottom:0.25rem;">QUESTION 0${idx + 1}</div>
-              <h4 style="font-size:1.05rem;font-weight:600;margin-bottom:0.6rem;">${q.question}</h4>
-              <div style="display:flex;flex-wrap:wrap;gap:0.45rem;margin-bottom:0.5rem;">
-                ${q.options.map((opt, oIdx) => `<span class="ca-badge" style="${oIdx === q.correctIndex ? "border-color:var(--status-success);color:var(--status-success);" : ""}">${opt}</span>`).join("")}
-              </div>
-              <div style="font-size:0.8rem;color:var(--text-secondary);">Explanation: ${q.explanation}</div>
+    if (!quizContainer) return;
+
+    quizContainer.innerHTML = quizList.map((q, idx) => `
+      <div class="ca-card" style="margin-bottom:1rem;padding:1.25rem;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;">
+          <div>
+            <div class="font-mono" style="font-size:0.72rem;color:var(--accent-primary);margin-bottom:0.25rem;">QUESTION 0${idx + 1}</div>
+            <h4 style="font-size:1.05rem;font-weight:600;margin-bottom:0.6rem;">${escapeHtml(q.question)}</h4>
+            <div style="display:flex;flex-wrap:wrap;gap:0.45rem;margin-bottom:0.5rem;">
+              ${(q.options || []).map((opt, oIdx) => `
+                <span class="ca-badge" style="${oIdx === q.correctIndex ? "border-color:var(--status-success);color:var(--status-success);" : ""}">
+                  ${escapeHtml(opt)}
+                </span>
+              `).join("")}
             </div>
-            <button type="button" class="btn btn-ghost btn-sm" style="color:var(--status-danger);" data-admin-del-quiz="${q.id}">Delete</button>
+            <div style="font-size:0.8rem;color:var(--text-secondary);">Explanation: ${escapeHtml(q.explanation)}</div>
           </div>
+          <button type="button" class="btn btn-ghost btn-sm" style="color:var(--status-danger);" data-admin-del-quiz="${escapeHtml(q.id)}">Delete</button>
         </div>
-      `).join("");
-    }
+      </div>
+    `).join("");
+  }
 
-    // 3. Activity Table
+  function renderAdminActivityTable(activities) {
     const actTbody = document.getElementById("admin-activity-tbody");
-    if (actTbody) {
-      actTbody.innerHTML = activities.map(a => `
-        <tr>
-          <td class="font-mono" style="color:var(--text-primary);">${a.user}</td>
-          <td>${a.action}</td>
-          <td class="font-mono">${a.timestamp}</td>
-          <td><span class="ca-badge">${a.type}</span></td>
-        </tr>
-      `).join("");
-    }
+    if (!actTbody) return;
 
-    // 4. Settings Form
-    const titleInp = document.getElementById("admin-setting-title");
-    if (titleInp && settings) {
-      titleInp.value = settings.siteTitle;
+    actTbody.innerHTML = activities.map(a => `
+      <tr>
+        <td class="font-mono" style="color:var(--text-primary);">${escapeHtml(a.user)}</td>
+        <td>${escapeHtml(a.action)}</td>
+        <td class="font-mono">${escapeHtml(a.timestamp)}</td>
+        <td><span class="ca-badge">${escapeHtml(a.type)}</span></td>
+      </tr>
+    `).join("");
+  }
+
+  /* Admin Modal Open/Close */
+  function openAdminLangModal(lang = null) {
+    const modal = document.getElementById("admin-lang-modal");
+    if (!modal) return;
+
+    const isEdit = !!lang;
+    document.getElementById("modal-lang-is-edit").value = isEdit ? "true" : "false";
+    document.getElementById("admin-modal-title").textContent = isEdit ? `Edit Language: ${lang.name}` : "Add New Language";
+
+    const idInput = document.getElementById("modal-lang-id");
+    idInput.value = isEdit ? lang.id : "";
+    idInput.disabled = isEdit; // Preserve ID on edit
+
+    document.getElementById("modal-lang-name").value = isEdit ? lang.name : "";
+    document.getElementById("modal-lang-mark").value = isEdit ? (lang.mark || "") : "";
+    document.getElementById("modal-lang-year").value = isEdit ? lang.year : 2026;
+    document.getElementById("modal-lang-category").value = isEdit ? lang.category : "Systems";
+    document.getElementById("modal-lang-creator").value = isEdit ? (lang.creator || "") : "";
+    document.getElementById("modal-lang-desc").value = isEdit ? (lang.description || "") : "";
+    document.getElementById("modal-lang-paradigm").value = isEdit ? (lang.paradigm || "") : "";
+    document.getElementById("modal-lang-execution").value = isEdit ? (lang.execution || "") : "";
+    document.getElementById("modal-lang-uses").value = isEdit ? (Array.isArray(lang.uses) ? lang.uses.join(", ") : lang.uses || "") : "";
+    document.getElementById("modal-lang-syntax").value = isEdit ? (lang.syntaxSample || "") : "";
+
+    modal.classList.add("open");
+  }
+
+  function closeAdminLangModal() {
+    const modal = document.getElementById("admin-lang-modal");
+    if (modal) {
+      modal.classList.remove("open");
+      document.getElementById("admin-lang-form")?.reset();
     }
   }
 
@@ -847,6 +1017,11 @@ window.CodeAtlasApp = (function () {
   function init() {
     updateAuthUI();
     renderHomeFeatured();
+
+    // Check if on Admin page
+    if (document.body.getAttribute("data-initial-view") === "admin" || document.getElementById("view-admin")) {
+      renderAdminConsole();
+    }
 
     // Initialize Hero Constellation if on Home
     if (document.getElementById("hero-constellation-canvas")) {
@@ -865,7 +1040,7 @@ window.CodeAtlasApp = (function () {
     }
 
     // Global Click Delegation
-    document.addEventListener("click", (e) => {
+    document.addEventListener("click", async (e) => {
       // Route links
       const routeBtn = e.target.closest("[data-route]");
       if (routeBtn) {
@@ -972,7 +1147,7 @@ window.CodeAtlasApp = (function () {
             <div class="font-mono" style="font-weight:700;color:${isCorrect ? "var(--status-success)" : "var(--status-danger)"};margin-bottom:0.35rem;">
               ${isCorrect ? "✓ TELEMETRY VERIFIED (CORRECT)" : "✕ SIGNAL MISMATCH (INCORRECT)"}
             </div>
-            <p style="font-size:0.88rem;color:var(--text-secondary);margin-bottom:1rem;">${q.explanation}</p>
+            <p style="font-size:0.88rem;color:var(--text-secondary);margin-bottom:1rem;">${escapeHtml(q.explanation)}</p>
             <button type="button" class="btn btn-primary btn-sm" id="btn-quiz-next">Continue →</button>
           `;
         }
@@ -994,10 +1169,14 @@ window.CodeAtlasApp = (function () {
 
       // Logout
       if (e.target.closest("[data-action='logout']")) {
-        window.CodeAtlasStore.logout();
+        await window.CodeAtlasStore.logout();
         updateAuthUI();
-        showToast("Signed out of client-side demo session");
-        navigateTo("home");
+        showToast("Signed out successfully");
+        if (window.location.pathname.includes("admin.html")) {
+          window.location.href = "login.html";
+        } else {
+          navigateTo("home");
+        }
         return;
       }
 
@@ -1017,27 +1196,25 @@ window.CodeAtlasApp = (function () {
       const delLangBtn = e.target.closest("[data-admin-del-lang]");
       if (delLangBtn) {
         const lid = delLangBtn.getAttribute("data-admin-del-lang");
-        const updated = window.CodeAtlasStore.getLanguages().filter(l => l.id !== lid);
-        window.CodeAtlasStore.saveLanguages(updated);
-        renderAdminConsole();
-        showToast(`Removed language node "${lid}" from client-side state`);
+        if (window.confirm(`Are you sure you want to delete language entity "${lid}"? This will be removed from PostgreSQL.`)) {
+          try {
+            await window.CodeAtlasStore.deleteLanguage(lid);
+            showToast(`Deleted language "${lid}" from database`);
+            await renderAdminConsole();
+          } catch (err) {
+            showToast(`Error: ${err.message}`);
+          }
+        }
         return;
       }
 
-      // Admin Edit Language (Quick Prompt Modal)
+      // Admin Edit Language (Open Modal)
       const editLangBtn = e.target.closest("[data-admin-edit-lang]");
       if (editLangBtn) {
         const lid = editLangBtn.getAttribute("data-admin-edit-lang");
-        const langs = window.CodeAtlasStore.getLanguages();
-        const target = langs.find(l => l.id === lid);
-        if (target) {
-          const newDesc = window.prompt(`Edit description for ${target.name} (saved to localStorage):`, target.description);
-          if (newDesc !== null && newDesc.trim()) {
-            target.description = newDesc.trim();
-            window.CodeAtlasStore.saveLanguages(langs);
-            renderAdminConsole();
-            showToast(`Updated ${target.name} in client-side state`);
-          }
+        const lang = await window.CodeAtlasStore.getLanguageById(lid);
+        if (lang) {
+          openAdminLangModal(lang);
         }
         return;
       }
@@ -1046,10 +1223,45 @@ window.CodeAtlasApp = (function () {
       const delQuizBtn = e.target.closest("[data-admin-del-quiz]");
       if (delQuizBtn) {
         const qid = delQuizBtn.getAttribute("data-admin-del-quiz");
-        const updated = window.CodeAtlasStore.getQuizQuestions().filter(q => q.id !== qid);
-        window.CodeAtlasStore.saveQuizQuestions(updated);
-        renderAdminConsole();
-        showToast("Quiz item deleted from local state");
+        try {
+          await window.CodeAtlasStore.deleteQuizQuestion(qid);
+          showToast("Quiz question deleted from database");
+          await renderAdminConsole();
+        } catch (err) {
+          showToast(`Error: ${err.message}`);
+        }
+        return;
+      }
+
+      // Admin Toggle User Role
+      const toggleRoleBtn = e.target.closest("[data-admin-toggle-role]");
+      if (toggleRoleBtn) {
+        const userId = toggleRoleBtn.getAttribute("data-admin-toggle-role");
+        const curRole = toggleRoleBtn.getAttribute("data-current-role");
+        const nextRole = curRole === "admin" ? "user" : "admin";
+        try {
+          await window.CodeAtlasStore.updateUserRole(userId, nextRole);
+          showToast(`Role updated to ${nextRole.toUpperCase()}`);
+          await renderAdminConsole();
+        } catch (err) {
+          showToast(`Error: ${err.message}`);
+        }
+        return;
+      }
+
+      // Admin Delete User
+      const delUserBtn = e.target.closest("[data-admin-del-user]");
+      if (delUserBtn) {
+        const userId = delUserBtn.getAttribute("data-admin-del-user");
+        if (window.confirm("Are you sure you want to remove this user profile from the database?")) {
+          try {
+            await window.CodeAtlasStore.deleteUser(userId);
+            showToast("User profile removed from database");
+            await renderAdminConsole();
+          } catch (err) {
+            showToast(`Error: ${err.message}`);
+          }
+        }
         return;
       }
     });
@@ -1121,23 +1333,75 @@ window.CodeAtlasApp = (function () {
       });
     }
 
-    // Login Form Submit
-    const loginForm = document.getElementById("ca-login-form");
-    if (loginForm) {
-      loginForm.addEventListener("submit", (e) => {
-        e.preventDefault();
-        const email = document.getElementById("login-email")?.value || "explorer@codeatlas.dev";
-        window.CodeAtlasStore.login(email);
-        updateAuthUI();
-        showToast(`Authenticated demo session as ${email}`);
-        navigateTo("home");
-      });
-    }
+    // Admin Language Search
+    document.getElementById("admin-lang-search")?.addEventListener("input", () => {
+      renderAdminLanguagesTable(currentAdminLangs);
+    });
 
-    // Admin Add Quiz Form
+    // Admin User Search
+    document.getElementById("admin-user-search")?.addEventListener("input", () => {
+      renderAdminUsersTable(currentAdminUsers);
+    });
+
+    // Admin Add Language Button -> Open Modal
+    document.getElementById("btn-admin-add-lang")?.addEventListener("click", () => {
+      openAdminLangModal();
+    });
+
+    // Admin Close Modal Buttons
+    document.getElementById("btn-admin-close-modal")?.addEventListener("click", closeAdminLangModal);
+    document.getElementById("btn-admin-cancel-modal")?.addEventListener("click", closeAdminLangModal);
+
+    // Admin Language Form Submit (Create or Update)
+    document.getElementById("admin-lang-form")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const isEdit = document.getElementById("modal-lang-is-edit")?.value === "true";
+      const id = document.getElementById("modal-lang-id")?.value.trim().toLowerCase();
+      const name = document.getElementById("modal-lang-name")?.value.trim();
+      const mark = document.getElementById("modal-lang-mark")?.value.trim() || name.slice(0, 2);
+      const year = parseInt(document.getElementById("modal-lang-year")?.value, 10) || 2026;
+      const category = document.getElementById("modal-lang-category")?.value;
+      const creator = document.getElementById("modal-lang-creator")?.value.trim();
+      const desc = document.getElementById("modal-lang-desc")?.value.trim();
+      const paradigm = document.getElementById("modal-lang-paradigm")?.value.trim();
+      const execution = document.getElementById("modal-lang-execution")?.value.trim();
+      const usesRaw = document.getElementById("modal-lang-uses")?.value.trim();
+      const uses = usesRaw ? usesRaw.split(",").map(u => u.trim()).filter(Boolean) : [];
+      const syntax = document.getElementById("modal-lang-syntax")?.value.trim();
+
+      const payload = {
+        id,
+        name,
+        mark,
+        year,
+        category,
+        creator,
+        description: desc,
+        paradigm,
+        execution,
+        uses,
+        syntaxSample: syntax
+      };
+
+      try {
+        if (isEdit) {
+          await window.CodeAtlasStore.updateLanguage(id, payload);
+          showToast(`Updated "${name}" in PostgreSQL database`);
+        } else {
+          await window.CodeAtlasStore.createLanguage(payload);
+          showToast(`Created new language "${name}" in PostgreSQL`);
+        }
+        closeAdminLangModal();
+        await renderAdminConsole();
+      } catch (err) {
+        showToast(`Save failed: ${err.message}`);
+      }
+    });
+
+    // Admin Add Quiz Form Submit
     const addQuizForm = document.getElementById("admin-add-quiz-form");
     if (addQuizForm) {
-      addQuizForm.addEventListener("submit", (e) => {
+      addQuizForm.addEventListener("submit", async (e) => {
         e.preventDefault();
         const qText = document.getElementById("admin-quiz-q")?.value;
         const opt0 = document.getElementById("admin-quiz-o0")?.value;
@@ -1147,39 +1411,207 @@ window.CodeAtlasApp = (function () {
         const exp = document.getElementById("admin-quiz-exp")?.value;
         if (!qText || !opt0 || !opt1) return;
 
-        const list = window.CodeAtlasStore.getQuizQuestions();
-        list.push({
-          id: "q-" + Date.now(),
-          question: qText,
-          options: [opt0, opt1, opt2 || "Assembly", opt3 || "Fortran"],
-          correctIndex: 0,
-          explanation: exp || "Verified by CodeAtlas Admin Console."
-        });
-        window.CodeAtlasStore.saveQuizQuestions(list);
-        addQuizForm.reset();
-        renderAdminConsole();
-        showToast("Added new quiz question to client-side dataset");
+        try {
+          await window.CodeAtlasStore.createQuizQuestion({
+            question: qText,
+            options: [opt0, opt1, opt2 || "Assembly", opt3 || "Fortran"],
+            correctIndex: 0,
+            explanation: exp || "Verified in CodeAtlas Architecture Assessment."
+          });
+          addQuizForm.reset();
+          showToast("Added new quiz question to database");
+          await renderAdminConsole();
+        } catch (err) {
+          showToast(`Quiz save failed: ${err.message}`);
+        }
       });
     }
 
-    // Admin Settings Save & Reset Demo State
-    document.getElementById("btn-admin-save-settings")?.addEventListener("click", () => {
+    // Admin Settings Save
+    document.getElementById("btn-admin-save-settings")?.addEventListener("click", async () => {
       const titleVal = document.getElementById("admin-setting-title")?.value || "CodeAtlas";
-      window.CodeAtlasStore.saveSettings({
-        siteTitle: titleVal,
-        themePreference: "Obsidian Telemetry Dark (#05070D)",
-        animationPreference: "Full Spatial Motion",
-        datasetVersion: "v2026.4-stable",
-        demoModeStatus: "Client-Side LocalStorage Simulation Active"
-      });
-      showToast("System settings saved to localStorage");
+      try {
+        await window.CodeAtlasStore.saveSettings({
+          siteTitle: titleVal,
+          themePreference: "Obsidian Telemetry Dark (#05070D)",
+          animationPreference: "Full Spatial Motion",
+          datasetVersion: "v2026.4-stable"
+        });
+        showToast("System settings persisted to database");
+      } catch (err) {
+        showToast(`Error saving settings: ${err.message}`);
+      }
     });
 
-    document.getElementById("btn-admin-reset-demo")?.addEventListener("click", () => {
-      window.CodeAtlasStore.resetDemoState();
-      renderAdminConsole();
-      showToast("Restored default dataset and demo telemetry");
+    // Admin Restore Dataset
+    document.getElementById("btn-admin-reset-demo")?.addEventListener("click", async () => {
+      if (window.confirm("Restore default verified language and quiz datasets to PostgreSQL?")) {
+        try {
+          await window.CodeAtlasStore.resetDefaultDataset();
+          showToast("Restored baseline dataset in database");
+          await renderAdminConsole();
+        } catch (err) {
+          showToast(`Reset failed: ${err.message}`);
+        }
+      }
     });
+
+    /* ========================================================================
+       AUTHENTICATION FORMS & TABS (login.html)
+       ======================================================================== */
+    const tabSignIn = document.getElementById("tab-btn-signin");
+    const tabSignUp = document.getElementById("tab-btn-signup");
+    const tabReset = document.getElementById("tab-btn-reset");
+    const panelSignIn = document.getElementById("panel-signin");
+    const panelSignUp = document.getElementById("panel-signup");
+    const panelReset = document.getElementById("panel-reset");
+    const authAlert = document.getElementById("auth-alert");
+
+    function setAuthAlert(msg, type = "error") {
+      if (!authAlert) return;
+      authAlert.style.display = "block";
+      authAlert.textContent = msg;
+      if (type === "error") {
+        authAlert.style.background = "rgba(239, 68, 68, 0.15)";
+        authAlert.style.border = "1px solid var(--status-danger)";
+        authAlert.style.color = "#fca5a5";
+      } else {
+        authAlert.style.background = "rgba(16, 185, 129, 0.15)";
+        authAlert.style.border = "1px solid var(--status-success)";
+        authAlert.style.color = "#6ee7b7";
+      }
+    }
+
+    if (tabSignIn && tabSignUp && tabReset) {
+      const switchAuthTab = (tab) => {
+        if (authAlert) authAlert.style.display = "none";
+        tabSignIn.classList.toggle("active", tab === "signin");
+        tabSignUp.classList.toggle("active", tab === "signup");
+        tabReset.classList.toggle("active", tab === "reset");
+        if (panelSignIn) panelSignIn.style.display = tab === "signin" ? "block" : "none";
+        if (panelSignUp) panelSignUp.style.display = tab === "signup" ? "block" : "none";
+        if (panelReset) panelReset.style.display = tab === "reset" ? "block" : "none";
+      };
+
+      tabSignIn.addEventListener("click", () => switchAuthTab("signin"));
+      tabSignUp.addEventListener("click", () => switchAuthTab("signup"));
+      tabReset.addEventListener("click", () => switchAuthTab("reset"));
+      document.getElementById("link-forgot-pass")?.addEventListener("click", () => switchAuthTab("reset"));
+      document.getElementById("btn-back-to-signin")?.addEventListener("click", () => switchAuthTab("signin"));
+
+      // Quick Preset Buttons
+      document.getElementById("btn-preset-admin")?.addEventListener("click", () => {
+        document.getElementById("login-email").value = "admin@codeatlas.dev";
+        document.getElementById("login-password").value = "codeatlas2026";
+      });
+
+      document.getElementById("btn-preset-user")?.addEventListener("click", () => {
+        document.getElementById("login-email").value = "student@example.com";
+        document.getElementById("login-password").value = "codeatlas2026";
+      });
+    }
+
+    // Sign In Form Submit
+    const loginForm = document.getElementById("ca-login-form");
+    if (loginForm) {
+      loginForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const email = document.getElementById("login-email")?.value.trim();
+        const password = document.getElementById("login-password")?.value;
+        const submitBtn = document.getElementById("btn-login-submit");
+
+        if (!email || !password) return;
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = "Authenticating with Supabase...";
+        }
+
+        try {
+          const session = await window.CodeAtlasStore.login(email, password);
+          updateAuthUI();
+          showToast(`Authenticated as ${session.fullName || session.email}`);
+
+          if (session.rawRole === "admin" || session.role === "Administrator") {
+            window.location.href = "admin.html";
+          } else {
+            window.location.href = "profile.html";
+          }
+        } catch (err) {
+          setAuthAlert(err.message || "Failed to authenticate.", "error");
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Sign in";
+          }
+        }
+      });
+    }
+
+    // Register Form Submit
+    const regForm = document.getElementById("ca-register-form");
+    if (regForm) {
+      regForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const fullName = document.getElementById("reg-name")?.value.trim();
+        const email = document.getElementById("reg-email")?.value.trim();
+        const phone = document.getElementById("reg-phone")?.value.trim();
+        const password = document.getElementById("reg-password")?.value;
+        const confirmPass = document.getElementById("reg-password-confirm")?.value;
+        const submitBtn = document.getElementById("btn-register-submit");
+
+        if (password !== confirmPass) {
+          setAuthAlert("Passkeys do not match. Please verify confirmation.", "error");
+          return;
+        }
+
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = "Provisioning account in Supabase...";
+        }
+
+        try {
+          const session = await window.CodeAtlasStore.register({ fullName, email, phone, password });
+          updateAuthUI();
+          showToast(`Account created for ${session.email}`);
+          window.location.href = "profile.html";
+        } catch (err) {
+          setAuthAlert(err.message || "Registration failed.", "error");
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Create Account";
+          }
+        }
+      });
+    }
+
+    // Password Reset Form Submit
+    const resetForm = document.getElementById("ca-reset-form");
+    if (resetForm) {
+      resetForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const email = document.getElementById("reset-email")?.value.trim();
+        const submitBtn = document.getElementById("btn-reset-submit");
+
+        if (!email) return;
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = "Dispatching recovery instructions...";
+        }
+
+        try {
+          const res = await window.CodeAtlasStore.resetPassword(email);
+          setAuthAlert(res.message || "Recovery email dispatched.", "success");
+        } catch (err) {
+          setAuthAlert(err.message || "Failed to dispatch recovery.", "error");
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Send Reset Instructions";
+          }
+        }
+      });
+    }
 
     // Check URL query or initial view attribute on body
     const initialViewAttr = document.body.getAttribute("data-initial-view");

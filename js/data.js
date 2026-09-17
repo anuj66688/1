@@ -467,30 +467,29 @@ window.CODEATLAS_DEFAULT_QUIZ = [
 ];
 
 /* ==========================================================================
-   CLIENT-SIDE DEMO PERSISTENCE MANAGER (localStorage)
-   Separates PUBLIC CONTENT, USER DEMO DATA, and ADMIN DEMO DATA.
+   PRODUCTION & SERVER-CONNECTED PERSISTENCE MANAGER (CodeAtlasStore)
+   Connects to /api/* backend powered by Supabase PostgreSQL, Auth & RBAC
    ========================================================================== */
 window.CodeAtlasStore = {
   KEYS: {
     USER_SESSION: "codeatlas_user_session_v1",
     USER_PROFILE: "codeatlas_user_profile_v1",
+    AUTH_TOKEN: "codeatlas_auth_token_v1",
     ADMIN_LANGS: "codeatlas_admin_langs_v1",
     ADMIN_QUIZ: "codeatlas_admin_quiz_v1",
     ADMIN_ACTIVITY: "codeatlas_admin_activity_v1",
     ADMIN_SETTINGS: "codeatlas_admin_settings_v1"
   },
 
-  init() {
-    if (!localStorage.getItem(this.KEYS.ADMIN_ACTIVITY)) {
-      const seedActivity = [
-        { id: "act-1", user: "student@example.com", action: "Explored Python in Spatial Atlas", timestamp: "Today, 14:22 UTC", type: "Language" },
-        { id: "act-2", user: "student@example.com", action: "Completed CodeAtlas Architecture Quiz (5/5)", timestamp: "Today, 14:15 UTC", type: "Quiz" },
-        { id: "act-3", user: "researcher@codeatlas.dev", action: "Compared Rust vs C++ Execution Models", timestamp: "Today, 11:40 UTC", type: "Compare" },
-        { id: "act-4", user: "student@example.com", action: "Selected AI / ML Learning Route", timestamp: "Yesterday", type: "Learning" }
-      ];
-      localStorage.setItem(this.KEYS.ADMIN_ACTIVITY, JSON.stringify(seedActivity));
-    }
+  _initialized: false,
+  _languagesCache: null,
+  _quizCache: null,
 
+  async init() {
+    if (this._initialized) return;
+    this._initialized = true;
+
+    // Initialize local caches
     if (!localStorage.getItem(this.KEYS.USER_PROFILE)) {
       const seedProfile = {
         exploredIds: ["python", "rust", "typescript", "c"],
@@ -502,51 +501,221 @@ window.CodeAtlasStore = {
       localStorage.setItem(this.KEYS.USER_PROFILE, JSON.stringify(seedProfile));
     }
 
-    if (!localStorage.getItem(this.KEYS.ADMIN_SETTINGS)) {
-      const seedSettings = {
-        siteTitle: "CodeAtlas — Interactive Programming Language Universe",
-        themePreference: "Obsidian Telemetry Dark (#05070D)",
-        animationPreference: "Full Spatial Motion (GSAP + Three.js)",
-        datasetVersion: "v2026.4-stable",
-        demoModeStatus: "Client-Side LocalStorage Simulation Active"
-      };
-      localStorage.setItem(this.KEYS.ADMIN_SETTINGS, JSON.stringify(seedSettings));
+    // Attempt background sync with /api
+    this.syncWithBackend().catch(() => {});
+  },
+
+  getToken() {
+    return localStorage.getItem(this.KEYS.AUTH_TOKEN) || null;
+  },
+
+  getAuthHeaders() {
+    const token = this.getToken();
+    return token ? { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
+  },
+
+  async syncWithBackend() {
+    try {
+      // Check auth status
+      const token = this.getToken();
+      if (token) {
+        const meRes = await fetch("/api/auth/me", { headers: this.getAuthHeaders() });
+        if (meRes.ok) {
+          const { user, profile } = await meRes.json();
+          if (user) {
+            const session = {
+              id: user.id,
+              email: user.email,
+              role: user.role === "admin" ? "Administrator" : "Explorer",
+              rawRole: user.role,
+              fullName: user.fullName || user.email.split("@")[0]
+            };
+            localStorage.setItem(this.KEYS.USER_SESSION, JSON.stringify(session));
+            if (profile) {
+              localStorage.setItem(this.KEYS.USER_PROFILE, JSON.stringify({
+                exploredIds: profile.explored_ids || ["python"],
+                quizAttempts: profile.quiz_attempts || 0,
+                bestScore: profile.best_score || "—",
+                lastActivity: profile.last_activity || "Active",
+                selectedPath: profile.selected_path || "AI / ML"
+              }));
+            }
+          }
+        } else if (meRes.status === 401) {
+          // Token expired
+          localStorage.removeItem(this.KEYS.AUTH_TOKEN);
+          localStorage.removeItem(this.KEYS.USER_SESSION);
+        }
+      }
+
+      // Fetch languages from backend
+      const langRes = await fetch("/api/languages");
+      if (langRes.ok) {
+        const data = await langRes.json();
+        if (data.languages && data.languages.length > 0) {
+          this._languagesCache = data.languages;
+          localStorage.setItem(this.KEYS.ADMIN_LANGS, JSON.stringify(data.languages));
+        }
+      }
+
+      // Fetch quiz questions
+      const quizRes = await fetch("/api/quiz");
+      if (quizRes.ok) {
+        const qData = await quizRes.json();
+        if (qData.questions && qData.questions.length > 0) {
+          this._quizCache = qData.questions;
+          localStorage.setItem(this.KEYS.ADMIN_QUIZ, JSON.stringify(qData.questions));
+        }
+      }
+    } catch (e) {
+      console.warn("[CodeAtlasStore] Offline / local mode active:", e.message);
     }
   },
 
-  /* Languages Accessor (Merges Default + Admin Local Overrides) */
+  /* Languages Accessor */
   getLanguages() {
+    if (this._languagesCache) return this._languagesCache;
     try {
       const custom = localStorage.getItem(this.KEYS.ADMIN_LANGS);
-      if (custom) return JSON.parse(custom);
-    } catch (e) { /* fallback */ }
+      if (custom) {
+        this._languagesCache = JSON.parse(custom);
+        return this._languagesCache;
+      }
+    } catch (e) {}
     return [...window.CODEATLAS_DEFAULT_LANGUAGES];
   },
 
-  saveLanguages(langs) {
-    localStorage.setItem(this.KEYS.ADMIN_LANGS, JSON.stringify(langs));
+  async fetchLanguages(category, search) {
+    try {
+      const url = new URL("/api/languages", window.location.origin);
+      if (category && category !== "All") url.searchParams.set("category", category);
+      if (search) url.searchParams.set("search", search);
+      const res = await fetch(url.toString());
+      if (res.ok) {
+        const data = await res.json();
+        this._languagesCache = data.languages;
+        localStorage.setItem(this.KEYS.ADMIN_LANGS, JSON.stringify(data.languages));
+        return data.languages;
+      }
+    } catch (e) {}
+    return this.getLanguages();
   },
 
-  getLanguageById(id) {
+  async getLanguageById(id) {
     if (!id) return null;
     const norm = String(id).toLowerCase().trim();
-    return this.getLanguages().find(l => l.id.toLowerCase() === norm || l.name.toLowerCase() === norm) || null;
+    // Check cache first
+    const cached = this.getLanguages().find(l => l.id.toLowerCase() === norm || l.name.toLowerCase() === norm);
+    if (cached) return cached;
+
+    try {
+      const res = await fetch(`/api/languages/${encodeURIComponent(norm)}`);
+      if (res.ok) {
+        const data = await res.json();
+        return data.language;
+      }
+    } catch (e) {}
+    return null;
+  },
+
+  async createLanguage(langData) {
+    const res = await fetch("/api/languages", {
+      method: "POST",
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(langData)
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "Failed to create language");
+    }
+    const data = await res.json();
+    await this.fetchLanguages();
+    return data.language;
+  },
+
+  async updateLanguage(id, updates) {
+    const res = await fetch(`/api/languages/${encodeURIComponent(id)}`, {
+      method: "PUT",
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(updates)
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "Failed to update language");
+    }
+    const data = await res.json();
+    await this.fetchLanguages();
+    return data.language;
+  },
+
+  async deleteLanguage(id) {
+    const res = await fetch(`/api/languages/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: this.getAuthHeaders()
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "Failed to delete language");
+    }
+    await this.fetchLanguages();
+    return true;
   },
 
   /* Quiz Accessor */
   getQuizQuestions() {
+    if (this._quizCache) return this._quizCache;
     try {
       const custom = localStorage.getItem(this.KEYS.ADMIN_QUIZ);
-      if (custom) return JSON.parse(custom);
-    } catch (e) { /* fallback */ }
+      if (custom) {
+        this._quizCache = JSON.parse(custom);
+        return this._quizCache;
+      }
+    } catch (e) {}
     return [...window.CODEATLAS_DEFAULT_QUIZ];
   },
 
-  saveQuizQuestions(questions) {
-    localStorage.setItem(this.KEYS.ADMIN_QUIZ, JSON.stringify(questions));
+  async fetchQuizQuestions() {
+    try {
+      const res = await fetch("/api/quiz");
+      if (res.ok) {
+        const data = await res.json();
+        this._quizCache = data.questions;
+        localStorage.setItem(this.KEYS.ADMIN_QUIZ, JSON.stringify(data.questions));
+        return data.questions;
+      }
+    } catch (e) {}
+    return this.getQuizQuestions();
   },
 
-  /* Session & Auth Demo */
+  async createQuizQuestion(questionData) {
+    const res = await fetch("/api/quiz", {
+      method: "POST",
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(questionData)
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "Failed to add quiz question");
+    }
+    const data = await res.json();
+    await this.fetchQuizQuestions();
+    return data.question;
+  },
+
+  async deleteQuizQuestion(id) {
+    const res = await fetch(`/api/quiz/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: this.getAuthHeaders()
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "Failed to delete quiz question");
+    }
+    await this.fetchQuizQuestions();
+    return true;
+  },
+
+  /* Session & Real Auth Integration */
   getSession() {
     try {
       const raw = localStorage.getItem(this.KEYS.USER_SESSION);
@@ -556,64 +725,157 @@ window.CodeAtlasStore = {
     }
   },
 
-  login(email, role = "Explorer") {
+  isAdmin() {
+    const s = this.getSession();
+    return s && (s.rawRole === "admin" || s.role === "Administrator" || (s.email && s.email.toLowerCase().includes("admin")));
+  },
+
+  async login(email, password) {
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email.trim(), password })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "Authentication failed. Please verify credentials.");
+    }
+
+    const data = await res.json();
+    if (data.token) {
+      localStorage.setItem(this.KEYS.AUTH_TOKEN, data.token);
+    }
     const session = {
-      email: email.trim(),
-      role: email.toLowerCase().includes("admin") ? "Administrator" : role,
-      joined: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+      id: data.user.id,
+      email: data.user.email,
+      role: data.user.role === "admin" ? "Administrator" : "Explorer",
+      rawRole: data.user.role,
+      fullName: data.user.fullName || data.user.email.split("@")[0]
     };
     localStorage.setItem(this.KEYS.USER_SESSION, JSON.stringify(session));
-    this.logActivity(session.email, "Authenticated client-side demo session", "Session");
+
+    if (data.profile) {
+      localStorage.setItem(this.KEYS.USER_PROFILE, JSON.stringify({
+        exploredIds: data.profile.explored_ids || ["python"],
+        quizAttempts: data.profile.quiz_attempts || 0,
+        bestScore: data.profile.best_score || "—",
+        lastActivity: data.profile.last_activity || "Just signed in",
+        selectedPath: data.profile.selected_path || "AI / ML"
+      }));
+    }
+
     return session;
   },
 
-  logout() {
+  async register({ email, password, fullName, phone }) {
+    const res = await fetch("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email.trim(), password, fullName, phone })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "Registration failed. Please try again.");
+    }
+
+    const data = await res.json();
+    if (data.token) {
+      localStorage.setItem(this.KEYS.AUTH_TOKEN, data.token);
+    }
+    const session = {
+      id: data.user.id,
+      email: data.user.email,
+      role: data.user.role === "admin" ? "Administrator" : "Explorer",
+      rawRole: data.user.role,
+      fullName: data.user.fullName || data.user.email.split("@")[0]
+    };
+    localStorage.setItem(this.KEYS.USER_SESSION, JSON.stringify(session));
+    return session;
+  },
+
+  async logout() {
+    try {
+      await fetch("/api/auth/logout", { method: "POST", headers: this.getAuthHeaders() });
+    } catch (e) {}
+    localStorage.removeItem(this.KEYS.AUTH_TOKEN);
     localStorage.removeItem(this.KEYS.USER_SESSION);
   },
 
-  /* User Profile Telemetry */
+  async resetPassword(email) {
+    const res = await fetch("/api/auth/reset-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email.trim() })
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "Failed to dispatch password recovery.");
+    }
+    return await res.json();
+  },
+
+  /* User Profile Telemetry & Sync */
   getProfileData() {
-    this.init();
     try {
-      return JSON.parse(localStorage.getItem(this.KEYS.USER_PROFILE));
+      const raw = localStorage.getItem(this.KEYS.USER_PROFILE);
+      return raw ? JSON.parse(raw) : { exploredIds: ["python"], quizAttempts: 0, bestScore: "—", lastActivity: "Just joined", selectedPath: "AI / ML" };
     } catch (e) {
       return { exploredIds: ["python"], quizAttempts: 0, bestScore: "—", lastActivity: "Just joined", selectedPath: "AI / ML" };
     }
   },
 
-  recordLanguageExplored(langId, langName) {
+  async recordLanguageExplored(langId, langName) {
     const profile = this.getProfileData();
     if (!profile.exploredIds.includes(langId)) {
       profile.exploredIds.push(langId);
     }
     profile.lastActivity = `Explored ${langName}`;
     localStorage.setItem(this.KEYS.USER_PROFILE, JSON.stringify(profile));
-    const userEmail = this.getSession()?.email || "student@example.com";
-    this.logActivity(userEmail, `Explored ${langName}`, "Language");
+
+    try {
+      await fetch("/api/profile/explore", {
+        method: "POST",
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({ langId, langName })
+      });
+    } catch (e) {}
   },
 
-  recordLearningPath(pathTitle) {
+  async recordLearningPath(pathTitle) {
     const profile = this.getProfileData();
     profile.selectedPath = pathTitle;
     profile.lastActivity = `Selected ${pathTitle} Path`;
     localStorage.setItem(this.KEYS.USER_PROFILE, JSON.stringify(profile));
-    const userEmail = this.getSession()?.email || "student@example.com";
-    this.logActivity(userEmail, `Selected Learning Path: ${pathTitle}`, "Learning");
+
+    try {
+      await fetch("/api/profile", {
+        method: "PUT",
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({ selected_path: pathTitle, last_activity: profile.lastActivity })
+      });
+    } catch (e) {}
   },
 
-  recordQuizAttempt(score, total) {
+  async recordQuizAttempt(score, total) {
     const profile = this.getProfileData();
     profile.quizAttempts = (profile.quizAttempts || 0) + 1;
     profile.bestScore = `${score} / ${total} (${Math.round((score / total) * 100)}%)`;
     profile.lastActivity = `Completed Quiz (${score}/${total})`;
     localStorage.setItem(this.KEYS.USER_PROFILE, JSON.stringify(profile));
-    const userEmail = this.getSession()?.email || "student@example.com";
-    this.logActivity(userEmail, `Completed Quiz (${score}/${total})`, "Quiz");
+
+    try {
+      await fetch("/api/profile/quiz-result", {
+        method: "POST",
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({ score, total })
+      });
+    } catch (e) {}
   },
 
   /* Activity Stream */
   getActivities() {
-    this.init();
     try {
       return JSON.parse(localStorage.getItem(this.KEYS.ADMIN_ACTIVITY)) || [];
     } catch (e) {
@@ -621,31 +883,119 @@ window.CodeAtlasStore = {
     }
   },
 
-  logActivity(user, action, type = "System") {
-    const list = this.getActivities();
-    list.unshift({
-      id: "act-" + Date.now(),
-      user: user || "student@example.com",
-      action,
-      timestamp: "Today, Just now",
-      type
+  async fetchActivities() {
+    try {
+      const res = await fetch("/api/activity", { headers: this.getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        return data.activities;
+      }
+    } catch (e) {}
+    return this.getActivities();
+  },
+
+  async logActivity(user, action, type = "System") {
+    try {
+      await fetch("/api/activity", {
+        method: "POST",
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({ userEmail: user, action, type })
+      });
+    } catch (e) {}
+  },
+
+  /* Admin Dashboard Telemetry */
+  async fetchAdminStats() {
+    const res = await fetch("/api/admin/stats", { headers: this.getAuthHeaders() });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "Failed to load admin statistics");
+    }
+    return await res.json();
+  },
+
+  async fetchAdminUsers() {
+    const res = await fetch("/api/admin/users", { headers: this.getAuthHeaders() });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "Failed to load user directory");
+    }
+    const data = await res.json();
+    return data.users;
+  },
+
+  async updateUserRole(userId, role) {
+    const res = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/role`, {
+      method: "PUT",
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify({ role })
     });
-    localStorage.setItem(this.KEYS.ADMIN_ACTIVITY, JSON.stringify(list.slice(0, 30)));
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "Failed to update role");
+    }
+    return await res.json();
   },
 
+  async deleteUser(userId) {
+    const res = await fetch(`/api/admin/users/${encodeURIComponent(userId)}`, {
+      method: "DELETE",
+      headers: this.getAuthHeaders()
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "Failed to delete user");
+    }
+    return true;
+  },
+
+  /* Settings */
   getSettings() {
-    this.init();
-    return JSON.parse(localStorage.getItem(this.KEYS.ADMIN_SETTINGS));
+    try {
+      const s = localStorage.getItem(this.KEYS.ADMIN_SETTINGS);
+      return s ? JSON.parse(s) : { siteTitle: "CodeAtlas — Interactive Programming Language Universe" };
+    } catch (e) {
+      return { siteTitle: "CodeAtlas" };
+    }
   },
 
-  saveSettings(settings) {
+  async saveSettings(settings) {
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify(settings)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        localStorage.setItem(this.KEYS.ADMIN_SETTINGS, JSON.stringify(data.settings));
+        return data.settings;
+      }
+    } catch (e) {}
     localStorage.setItem(this.KEYS.ADMIN_SETTINGS, JSON.stringify(settings));
-    this.logActivity(this.getSession()?.email || "admin@codeatlas.dev", "Updated client-side system configuration", "Settings");
+    return settings;
   },
 
-  resetDemoState() {
-    Object.values(this.KEYS).forEach(k => localStorage.removeItem(k));
-    this.init();
+  async resetDefaultDataset() {
+    const res = await fetch("/api/admin/reset-dataset", {
+      method: "POST",
+      headers: this.getAuthHeaders()
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "Failed to reset dataset");
+    }
+    this._languagesCache = null;
+    this._quizCache = null;
+    localStorage.removeItem(this.KEYS.ADMIN_LANGS);
+    localStorage.removeItem(this.KEYS.ADMIN_QUIZ);
+    await this.fetchLanguages();
+    await this.fetchQuizQuestions();
+    return true;
+  },
+
+  async resetDemoState() {
+    return await this.resetDefaultDataset();
   }
 };
 

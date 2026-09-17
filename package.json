@@ -1,0 +1,16 @@
+{
+  "name": "codeatlas",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js",
+    "lint": "node --check server.js server/db.js server/routes.js",
+    "build": "echo 'Static site ready'"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.116.0",
+    "cookie-parser": "^1.4.7",
+    "express": "^4.21.2"
+  }
+}

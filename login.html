@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Developer Authentication — CodeAtlas</title>
+  <meta name="description" content="Sign in or register for a CodeAtlas account to track explored programming languages, save curated learning paths, record architecture quiz scores, and access the system control console." />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2305070D' stroke='%2300F0FF' stroke-width='3'/%3E%3Ctext x='50%25' y='54%25' text-anchor='middle' dominant-baseline='middle' fill='%2300F0FF' font-family='monospace' font-weight='bold' font-size='24'%3E%26lt;/%26gt;%3C/text%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/responsive.css" />
+</head>
+<body data-initial-view="login">
+  <header class="ca-navbar" role="banner">
+    <div class="ca-navbar-inner">
+      <a href="index.html" class="ca-brand"><span class="ca-brand-mark">&lt;/&gt;</span><span>Code<span class="ca-brand-atlas">Atlas</span></span></a>
+      <nav aria-label="Primary Navigation">
+        <ul class="ca-nav-links">
+          <li><a href="index.html" class="ca-nav-link">Home</a></li>
+          <li><a href="atlas.html" class="ca-nav-link">Atlas</a></li>
+          <li><a href="languages.html" class="ca-nav-link">Languages</a></li>
+          <li><a href="timeline.html" class="ca-nav-link">Timeline</a></li>
+          <li><a href="compare.html" class="ca-nav-link">Compare</a></li>
+          <li><a href="explore.html" class="ca-nav-link">Explore</a></li>
+          <li><a href="quiz.html" class="ca-nav-link">Quiz</a></li>
+        </ul>
+      </nav>
+      <div class="ca-nav-actions ca-nav-actions-desktop" data-auth-slot></div>
+    </div>
+  </header>
+
+  <main id="view-login" class="ca-view active">
+    <div class="ca-container" style="padding-top:3.5rem;padding-bottom:5rem;display:flex;justify-content:center;">
+      <div class="ca-card" style="width:100%;max-width:480px;padding:2.25rem;">
+        
+        <!-- Auth Tab Selector -->
+        <div style="display:flex;background:var(--bg-void);padding:0.3rem;border-radius:var(--radius-sm);border:1px solid var(--border-subtle);margin-bottom:1.5rem;">
+          <button type="button" id="tab-btn-signin" class="filter-pill active" style="flex:1;text-align:center;padding:0.5rem 0.75rem;">Sign In</button>
+          <button type="button" id="tab-btn-signup" class="filter-pill" style="flex:1;text-align:center;padding:0.5rem 0.75rem;">Create Account</button>
+          <button type="button" id="tab-btn-reset" class="filter-pill" style="flex:1;text-align:center;padding:0.5rem 0.75rem;">Reset Pass</button>
+        </div>
+
+        <!-- Alert Notification Area -->
+        <div id="auth-alert" style="display:none;padding:0.75rem 1rem;border-radius:var(--radius-sm);margin-bottom:1.25rem;font-size:0.85rem;"></div>
+
+        <!-- SIGN IN FORM -->
+        <div id="panel-signin">
+          <div class="eyebrow" style="margin-bottom:0.5rem;">AUTHENTICATION</div>
+          <h1 style="font-size:1.75rem;font-weight:800;margin-bottom:0.35rem;">Sign in to CodeAtlas</h1>
+          <p style="font-size:0.86rem;color:var(--text-secondary);margin-bottom:1.5rem;">
+            Access your verified profile, track language mastery, and authenticate administrative rights.
+          </p>
+          <form id="ca-login-form" style="display:flex;flex-direction:column;gap:1.15rem;">
+            <div>
+              <label for="login-email" class="inspector-stat-label" style="display:block;margin-bottom:0.4rem;">DEVELOPER EMAIL</label>
+              <input type="email" id="login-email" required class="ca-input" style="padding-left:0.9rem;" value="student@example.com" placeholder="developer@codeatlas.dev" />
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem;">
+                <label for="login-password" class="inspector-stat-label">ACCESS PASSKEY</label>
+                <button type="button" id="link-forgot-pass" style="background:none;border:none;color:var(--accent-primary);font-size:0.75rem;cursor:pointer;">Forgot passkey?</button>
+              </div>
+              <input type="password" id="login-password" required class="ca-input" style="padding-left:0.9rem;" value="codeatlas2026" placeholder="••••••••" />
+            </div>
+            <button type="submit" id="btn-login-submit" class="btn btn-primary" style="width:100%;margin-top:0.4rem;">Sign in</button>
+          </form>
+
+          <div style="margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid var(--border-subtle);font-size:0.8rem;color:var(--text-muted);">
+            <div style="margin-bottom:0.5rem;font-weight:600;color:var(--text-secondary);">Quick Preset Credentials:</div>
+            <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-preset-admin" style="font-size:0.75rem;">Admin: admin@codeatlas.dev</button>
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-preset-user" style="font-size:0.75rem;">User: student@example.com</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- SIGN UP / REGISTRATION FORM -->
+        <div id="panel-signup" style="display:none;">
+          <div class="eyebrow" style="margin-bottom:0.5rem;">REGISTRATION</div>
+          <h1 style="font-size:1.75rem;font-weight:800;margin-bottom:0.35rem;">Create developer account</h1>
+          <p style="font-size:0.86rem;color:var(--text-secondary);margin-bottom:1.5rem;">
+            Provision your developer profile with persistent cloud telemetry and progress tracking.
+          </p>
+          <form id="ca-register-form" style="display:flex;flex-direction:column;gap:1.05rem;">
+            <div>
+              <label for="reg-name" class="inspector-stat-label" style="display:block;margin-bottom:0.4rem;">FULL NAME</label>
+              <input type="text" id="reg-name" required class="ca-input" style="padding-left:0.9rem;" placeholder="e.g. Ada Lovelace" />
+            </div>
+            <div>
+              <label for="reg-email" class="inspector-stat-label" style="display:block;margin-bottom:0.4rem;">DEVELOPER EMAIL</label>
+              <input type="email" id="reg-email" required class="ca-input" style="padding-left:0.9rem;" placeholder="ada@codeatlas.dev" />
+            </div>
+            <div>
+              <label for="reg-phone" class="inspector-stat-label" style="display:block;margin-bottom:0.4rem;">CONTACT PHONE (OPTIONAL)</label>
+              <input type="tel" id="reg-phone" class="ca-input" style="padding-left:0.9rem;" placeholder="+1 (555) 019-2834" />
+            </div>
+            <div>
+              <label for="reg-password" class="inspector-stat-label" style="display:block;margin-bottom:0.4rem;">PASSKEY (MIN. 6 CHARACTERS)</label>
+              <input type="password" id="reg-password" required minlength="6" class="ca-input" style="padding-left:0.9rem;" placeholder="••••••••" />
+            </div>
+            <div>
+              <label for="reg-password-confirm" class="inspector-stat-label" style="display:block;margin-bottom:0.4rem;">CONFIRM PASSKEY</label>
+              <input type="password" id="reg-password-confirm" required minlength="6" class="ca-input" style="padding-left:0.9rem;" placeholder="••••••••" />
+            </div>
+            <button type="submit" id="btn-register-submit" class="btn btn-primary" style="width:100%;margin-top:0.4rem;">Create Account</button>
+          </form>
+        </div>
+
+        <!-- PASSWORD RESET FORM -->
+        <div id="panel-reset" style="display:none;">
+          <div class="eyebrow" style="margin-bottom:0.5rem;">RECOVERY</div>
+          <h1 style="font-size:1.75rem;font-weight:800;margin-bottom:0.35rem;">Reset passkey</h1>
+          <p style="font-size:0.86rem;color:var(--text-secondary);margin-bottom:1.5rem;">
+            Provide your registered developer email address to receive password recovery instructions.
+          </p>
+          <form id="ca-reset-form" style="display:flex;flex-direction:column;gap:1.15rem;">
+            <div>
+              <label for="reset-email" class="inspector-stat-label" style="display:block;margin-bottom:0.4rem;">DEVELOPER EMAIL</label>
+              <input type="email" id="reset-email" required class="ca-input" style="padding-left:0.9rem;" placeholder="developer@codeatlas.dev" />
+            </div>
+            <button type="submit" id="btn-reset-submit" class="btn btn-primary" style="width:100%;margin-top:0.4rem;">Send Reset Instructions</button>
+            <button type="button" id="btn-back-to-signin" class="btn btn-secondary" style="width:100%;">Return to Sign In</button>
+          </form>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <script src="js/data.js"></script>
+  <script src="js/atlas.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
