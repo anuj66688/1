@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Developer Sign In — CodeAtlas</title>
+  <meta name="description" content="Sign in to the CodeAtlas interactive demo session to track explored languages, learning paths, and quiz scores in localStorage." />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2305070D' stroke='%2300F0FF' stroke-width='3'/%3E%3Ctext x='50%25' y='54%25' text-anchor='middle' dominant-baseline='middle' fill='%2300F0FF' font-family='monospace' font-weight='bold' font-size='24'%3E%26lt;/%26gt;%3C/text%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/responsive.css" />
+</head>
+<body data-initial-view="login">
+  <header class="ca-navbar" role="banner">
+    <div class="ca-navbar-inner">
+      <a href="index.html" class="ca-brand"><span class="ca-brand-mark">&lt;/&gt;</span><span>Code<span class="ca-brand-atlas">Atlas</span></span></a>
+      <nav aria-label="Primary Navigation">
+        <ul class="ca-nav-links">
+          <li><a href="index.html" class="ca-nav-link">Home</a></li>
+          <li><a href="atlas.html" class="ca-nav-link">Atlas</a></li>
+          <li><a href="languages.html" class="ca-nav-link">Languages</a></li>
+          <li><a href="timeline.html" class="ca-nav-link">Timeline</a></li>
+          <li><a href="compare.html" class="ca-nav-link">Compare</a></li>
+          <li><a href="explore.html" class="ca-nav-link">Explore</a></li>
+          <li><a href="quiz.html" class="ca-nav-link">Quiz</a></li>
+        </ul>
+      </nav>
+      <div class="ca-nav-actions ca-nav-actions-desktop" data-auth-slot></div>
+    </div>
+  </header>
+
+  <main id="view-login" class="ca-view active">
+    <div class="ca-container" style="padding-top:4rem;padding-bottom:5rem;display:flex;justify-content:center;">
+      <div class="ca-card" style="width:100%;max-width:460px;padding:2.25rem;">
+        <div class="eyebrow" style="margin-bottom:0.6rem;">CLIENT-SIDE DEMO SESSION</div>
+        <h1 style="font-size:1.85rem;font-weight:800;margin-bottom:0.4rem;">Sign in to CodeAtlas</h1>
+        <p style="font-size:0.86rem;color:var(--text-secondary);margin-bottom:1.75rem;">
+          Enter any valid email and password to initialize your local developer session in <code class="font-mono">localStorage</code>.
+        </p>
+        <form id="ca-login-form" style="display:flex;flex-direction:column;gap:1.15rem;">
+          <div>
+            <label for="login-email" class="inspector-stat-label" style="display:block;margin-bottom:0.4rem;">DEVELOPER EMAIL</label>
+            <input type="email" id="login-email" required class="ca-input" style="padding-left:0.9rem;" value="student@example.com" />
+          </div>
+          <div>
+            <label for="login-password" class="inspector-stat-label" style="display:block;margin-bottom:0.4rem;">ACCESS PASSKEY</label>
+            <input type="password" id="login-password" required class="ca-input" style="padding-left:0.9rem;" value="codeatlas2026" />
+          </div>
+          <button type="submit" class="btn btn-primary" style="width:100%;margin-top:0.4rem;">Sign in</button>
+        </form>
+      </div>
+    </div>
+  </main>
+
+  <script src="js/data.js"></script>
+  <script src="js/atlas.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,282 @@
+/* ==========================================================================
+   CODEATLAS — REUSABLE UI COMPONENTS (css/components.css)
+   ========================================================================== */
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 0.625rem 1.15rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.btn-primary {
+  background: var(--accent-primary);
+  color: #030712;
+  font-weight: 600;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.2);
+}
+
+.btn-primary:hover {
+  background: #33F3FF;
+  box-shadow: 0 0 28px rgba(0, 240, 255, 0.4);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: rgba(17, 24, 39, 0.85);
+  color: var(--text-primary);
+  border-color: var(--border-subtle);
+}
+
+.btn-secondary:hover {
+  border-color: var(--accent-primary);
+  background: rgba(0, 240, 255, 0.06);
+  color: var(--accent-primary);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border-color: transparent;
+}
+
+.btn-ghost:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.btn-sm {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+}
+
+/* Telemetry Surface Cards */
+.ca-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  position: relative;
+  transition: border-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+  overflow: hidden;
+}
+
+.ca-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.ca-card:hover {
+  border-color: rgba(0, 240, 255, 0.35);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.75), 0 0 18px rgba(0, 240, 255, 0.06);
+}
+
+/* Language Emblem / Mark */
+.lang-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 0.9rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--accent-primary);
+  flex-shrink: 0;
+}
+
+.lang-mark-lg {
+  width: 56px;
+  height: 56px;
+  font-size: 1.15rem;
+  border-radius: 10px;
+}
+
+/* Category & Telemetry Badges */
+.ca-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: rgba(17, 24, 39, 0.8);
+  color: var(--text-secondary);
+  letter-spacing: 0.03em;
+}
+
+.ca-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.ca-badge[data-cat="Systems"] { color: var(--cat-systems); border-color: rgba(249, 115, 22, 0.3); background: rgba(249, 115, 22, 0.08); }
+.ca-badge[data-cat="Web"] { color: var(--cat-web); border-color: rgba(0, 240, 255, 0.3); background: rgba(0, 240, 255, 0.08); }
+.ca-badge[data-cat="AI & Data"] { color: var(--cat-aidata); border-color: rgba(16, 185, 129, 0.3); background: rgba(16, 185, 129, 0.08); }
+.ca-badge[data-cat="Enterprise"] { color: var(--cat-enterprise); border-color: rgba(139, 92, 246, 0.3); background: rgba(139, 92, 246, 0.08); }
+.ca-badge[data-cat="Mobile"] { color: var(--cat-mobile); border-color: rgba(236, 72, 153, 0.3); background: rgba(236, 72, 153, 0.08); }
+.ca-badge[data-cat="Data"] { color: var(--cat-data); border-color: rgba(59, 130, 246, 0.3); background: rgba(59, 130, 246, 0.08); }
+
+/* Search & Form Inputs */
+.ca-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.ca-input {
+  width: 100%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  padding: 0.65rem 0.9rem 0.65rem 2.4rem;
+  border-radius: var(--radius-sm);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.ca-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(0, 240, 255, 0.12);
+}
+
+.ca-input-icon {
+  position: absolute;
+  left: 0.8rem;
+  color: var(--text-muted);
+  pointer-events: none;
+  width: 16px;
+  height: 16px;
+}
+
+/* Filter Pill Buttons */
+.filter-pill {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.filter-pill:hover {
+  color: var(--text-primary);
+  border-color: var(--border-focus);
+}
+
+.filter-pill.active {
+  background: rgba(0, 240, 255, 0.12);
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.15);
+}
+
+/* Code / Syntax Block */
+.ca-code-block {
+  background: #030509;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: #E2E8F0;
+  overflow-x: auto;
+  position: relative;
+}
+
+.ca-code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 0.6rem;
+  margin-bottom: 0.6rem;
+  border-bottom: 1px solid rgba(30, 41, 59, 0.6);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* Learning Path Connector Step */
+.path-step-connector {
+  width: 2px;
+  height: 32px;
+  background: linear-gradient(to bottom, var(--accent-primary), var(--accent-secondary));
+  margin: 0 auto;
+  position: relative;
+  overflow: hidden;
+}
+
+.path-step-connector::after {
+  content: "";
+  position: absolute;
+  top: -100%;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #FFFFFF;
+  animation: pulseFlow 2.2s infinite ease-in-out;
+}
+
+@keyframes pulseFlow {
+  0% { top: -100%; opacity: 0; }
+  50% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+/* Toast Notification */
+.ca-toast {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--accent-primary);
+  color: var(--text-primary);
+  padding: 0.85rem 1.25rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  transform: translateY(120%);
+  opacity: 0;
+  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ca-toast.show {
+  transform: translateY(0);
+  opacity: 1;
+}

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interactive Spatial Atlas — CodeAtlas</title>
+  <meta name="description" content="Explore the interactive 3D programming universe, language lineages, ecosystems, and syntax telemetry in CodeAtlas." />
+  <meta property="og:title" content="Interactive Spatial Atlas — CodeAtlas" />
+  <meta property="og:description" content="Explore the interactive 3D programming universe, language lineages, ecosystems, and syntax telemetry in CodeAtlas." />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2305070D' stroke='%2300F0FF' stroke-width='3'/%3E%3Ctext x='50%25' y='54%25' text-anchor='middle' dominant-baseline='middle' fill='%2300F0FF' font-family='monospace' font-weight='bold' font-size='24'%3E%26lt;/%26gt;%3C/text%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/atlas.css" />
+  <link rel="stylesheet" href="css/responsive.css" />
+</head>
+<body data-initial-view="atlas">
+  <header class="ca-navbar" role="banner">
+    <div class="ca-navbar-inner">
+      <a href="index.html" class="ca-brand"><span class="ca-brand-mark">&lt;/&gt;</span><span>Code<span class="ca-brand-atlas">Atlas</span></span></a>
+      <nav aria-label="Primary Navigation">
+        <ul class="ca-nav-links">
+          <li><a href="index.html" class="ca-nav-link">Home</a></li>
+          <li><a href="atlas.html" class="ca-nav-link active">Atlas</a></li>
+          <li><a href="languages.html" class="ca-nav-link">Languages</a></li>
+          <li><a href="timeline.html" class="ca-nav-link">Timeline</a></li>
+          <li><a href="compare.html" class="ca-nav-link">Compare</a></li>
+          <li><a href="explore.html" class="ca-nav-link">Explore</a></li>
+          <li><a href="quiz.html" class="ca-nav-link">Quiz</a></li>
+        </ul>
+      </nav>
+      <div class="ca-nav-actions ca-nav-actions-desktop" data-auth-slot></div>
+    </div>
+  </header>
+
+  <main id="view-atlas" class="ca-view active">
+    <div id="atlas-tooltip" class="atlas-tooltip" role="tooltip"></div>
+    <div class="atlas-workbench">
+      <aside class="atlas-sidebar">
+        <div class="atlas-panel-title"><span>ATLAS CONTROL</span><span class="status-dot"></span></div>
+        <div class="ca-input-wrap">
+          <svg class="ca-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="search" id="atlas-search-input" class="ca-input" placeholder="Filter nodes (e.g. Rust, 1995)..." aria-label="Search language nodes" />
+        </div>
+        <div>
+          <div class="atlas-panel-title" style="margin-bottom:0.55rem;">CATEGORIES</div>
+          <div class="atlas-category-list">
+            <button type="button" class="atlas-cat-btn active" data-atlas-cat="All"><span>All Sectors</span><span class="font-mono">16</span></button>
+            <button type="button" class="atlas-cat-btn" data-atlas-cat="AI & Data"><span>AI &amp; Data</span><span class="ca-badge-dot" style="color:var(--cat-aidata);"></span></button>
+            <button type="button" class="atlas-cat-btn" data-atlas-cat="Web"><span>Web</span><span class="ca-badge-dot" style="color:var(--cat-web);"></span></button>
+            <button type="button" class="atlas-cat-btn" data-atlas-cat="Systems"><span>Systems</span><span class="ca-badge-dot" style="color:var(--cat-systems);"></span></button>
+            <button type="button" class="atlas-cat-btn" data-atlas-cat="Enterprise"><span>Enterprise</span><span class="ca-badge-dot" style="color:var(--cat-enterprise);"></span></button>
+            <button type="button" class="atlas-cat-btn" data-atlas-cat="Mobile"><span>Mobile</span><span class="ca-badge-dot" style="color:var(--cat-mobile);"></span></button>
+            <button type="button" class="atlas-cat-btn" data-atlas-cat="Data"><span>Data</span><span class="ca-badge-dot" style="color:var(--cat-data);"></span></button>
+          </div>
+        </div>
+        <div style="margin-top:auto;padding-top:1rem;border-top:1px solid var(--border-subtle);">
+          <button type="button" id="atlas-toggle-matrix" class="btn btn-secondary btn-sm" style="width:100%;">Accessible Matrix View</button>
+        </div>
+      </aside>
+
+      <div class="atlas-viewport">
+        <div class="atlas-hud-top">
+          <div class="atlas-hud-pill"><span class="status-dot"></span><span id="atlas-visible-count">16 / 16 NODES ACTIVE</span></div>
+          <div class="atlas-hud-pill"><span>PROGRAMMING UNIVERSE</span></div>
+        </div>
+        <canvas id="atlas-canvas" aria-label="Interactive Programming Language Universe Map"></canvas>
+        <div id="atlas-accessible-matrix" class="atlas-accessible-matrix">
+          <div id="atlas-accessible-matrix-body" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:0.85rem;"></div>
+        </div>
+        <div class="atlas-hud-bottom">
+          <button type="button" id="atlas-btn-reset" class="atlas-ctrl-btn">Reset View</button>
+          <button type="button" id="atlas-btn-zoom-in" class="atlas-ctrl-btn">Zoom +</button>
+          <button type="button" id="atlas-btn-zoom-out" class="atlas-ctrl-btn">Zoom -</button>
+          <button type="button" id="atlas-btn-fit" class="atlas-ctrl-btn">Fit</button>
+        </div>
+      </div>
+
+      <aside class="atlas-inspector">
+        <div class="atlas-panel-title"><span>LANGUAGE INFORMATION</span><span class="font-mono" style="color:var(--accent-primary);">DOSSIER</span></div>
+        <div id="atlas-inspector-content"></div>
+      </aside>
+    </div>
+  </main>
+
+  <script src="js/data.js"></script>
+  <script src="js/atlas.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

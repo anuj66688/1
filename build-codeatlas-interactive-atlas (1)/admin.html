@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Console — Internal Control Center — CodeAtlas</title>
+  <meta name="description" content="CodeAtlas internal control center for inspecting language datasets, managing quiz content, viewing local user activity, and configuring system settings." />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2305070D' stroke='%2300F0FF' stroke-width='3'/%3E%3Ctext x='50%25' y='54%25' text-anchor='middle' dominant-baseline='middle' fill='%2300F0FF' font-family='monospace' font-weight='bold' font-size='24'%3E%26lt;/%26gt;%3C/text%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/admin.css" />
+  <link rel="stylesheet" href="css/responsive.css" />
+</head>
+<body data-initial-view="admin">
+  <!-- Admin Navbar: CodeAtlas | ADMIN CONSOLE | Exit -->
+  <header class="ca-navbar" role="banner">
+    <div class="ca-navbar-inner">
+      <div style="display:flex;align-items:center;gap:1rem;">
+        <a href="index.html" class="ca-brand"><span class="ca-brand-mark">&lt;/&gt;</span><span>Code<span class="ca-brand-atlas">Atlas</span></span></a>
+        <span class="ca-badge" style="border-color:var(--accent-primary);color:var(--accent-primary);">ADMIN CONSOLE</span>
+      </div>
+      <div class="ca-nav-actions">
+        <a href="index.html" class="btn btn-secondary btn-sm">Exit</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="view-admin" class="ca-view active">
+    <div class="admin-shell">
+      <aside class="admin-sidebar">
+        <div class="admin-sidebar-nav">
+          <div class="eyebrow" style="margin:0 0.6rem 1rem 0.6rem;">CONTROL MODULES</div>
+          <button type="button" class="admin-nav-btn active" data-admin-tab="overview">Overview</button>
+          <button type="button" class="admin-nav-btn" data-admin-tab="languages">Languages</button>
+          <button type="button" class="admin-nav-btn" data-admin-tab="quiz">Quiz Content</button>
+          <button type="button" class="admin-nav-btn" data-admin-tab="activity">Activity</button>
+          <button type="button" class="admin-nav-btn" data-admin-tab="settings">Settings</button>
+        </div>
+        <div style="padding-top:1rem;border-top:1px solid var(--border-subtle);">
+          <a href="index.html" class="btn btn-secondary btn-sm" style="width:100%;">Exit</a>
+        </div>
+      </aside>
+
+      <div class="admin-content">
+        <!-- Overview -->
+        <div id="admin-panel-overview" class="admin-tab-panel active">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:2rem;">
+            <div>
+              <div class="eyebrow" style="margin-bottom:0.35rem;">INTERNAL CONTROL CENTER</div>
+              <h1 style="font-size:2rem;font-weight:800;">Admin dashboard.</h1>
+            </div>
+            <button type="button" id="btn-admin-reset-demo" class="btn btn-secondary btn-sm">Restore Default Dataset</button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1.15rem;margin-bottom:2rem;">
+            <div class="ca-card">
+              <div class="inspector-stat-label">Languages</div>
+              <div id="admin-stat-langs" class="font-mono" style="font-size:2.25rem;font-weight:700;color:var(--accent-primary);">16</div>
+            </div>
+            <div class="ca-card">
+              <div class="inspector-stat-label">Timeline Events</div>
+              <div id="admin-stat-timeline" class="font-mono" style="font-size:2.25rem;font-weight:700;color:var(--text-primary);">15</div>
+            </div>
+            <div class="ca-card">
+              <div class="inspector-stat-label">Quiz Questions</div>
+              <div id="admin-stat-quiz" class="font-mono" style="font-size:2.25rem;font-weight:700;color:var(--accent-secondary);">5</div>
+            </div>
+            <div class="ca-card">
+              <div class="inspector-stat-label">Local Users</div>
+              <div class="font-mono" style="font-size:2.25rem;font-weight:700;color:var(--status-success);">1</div>
+            </div>
+          </div>
+          <div class="ca-card" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+            <div style="display:flex;align-items:center;gap:0.85rem;">
+              <span class="status-dot"></span>
+              <div>
+                <div style="font-weight:600;">All client-side modules operational</div>
+                <div class="font-mono" style="font-size:0.76rem;color:var(--text-muted);">Persistence Layer: window.localStorage • Static Demo Mode</div>
+              </div>
+            </div>
+            <span class="ca-badge" data-cat="AI & Data">SYSTEM HEALTHY</span>
+          </div>
+        </div>
+
+        <!-- Languages -->
+        <div id="admin-panel-languages" class="admin-tab-panel">
+          <h2 style="font-size:1.75rem;font-weight:800;margin-bottom:1.25rem;">Language Management</h2>
+          <div class="ca-table-wrap">
+            <table class="ca-table">
+              <thead>
+                <tr>
+                  <th>Language</th>
+                  <th>Year</th>
+                  <th>Category</th>
+                  <th>Use Cases</th>
+                  <th>Controls</th>
+                </tr>
+              </thead>
+              <tbody id="admin-languages-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Quiz Content -->
+        <div id="admin-panel-quiz" class="admin-tab-panel">
+          <h2 style="font-size:1.75rem;font-weight:800;margin-bottom:1.25rem;">Quiz Content Management</h2>
+          <div class="ca-card" style="margin-bottom:1.75rem;">
+            <form id="admin-add-quiz-form" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0.85rem;">
+              <input type="text" id="admin-quiz-q" required class="ca-input" style="padding-left:0.9rem;grid-column:1/-1;" placeholder="Question prompt..." />
+              <input type="text" id="admin-quiz-o0" required class="ca-input" style="padding-left:0.9rem;" placeholder="Correct Answer (Option A)" />
+              <input type="text" id="admin-quiz-o1" required class="ca-input" style="padding-left:0.9rem;" placeholder="Option B" />
+              <input type="text" id="admin-quiz-o2" class="ca-input" style="padding-left:0.9rem;" placeholder="Option C" />
+              <input type="text" id="admin-quiz-o3" class="ca-input" style="padding-left:0.9rem;" placeholder="Option D" />
+              <input type="text" id="admin-quiz-exp" class="ca-input" style="padding-left:0.9rem;grid-column:1/-1;" placeholder="Explanation..." />
+              <div><button type="submit" class="btn btn-primary btn-sm">+ Add Question</button></div>
+            </form>
+          </div>
+          <div id="admin-quiz-list"></div>
+        </div>
+
+        <!-- Activity -->
+        <div id="admin-panel-activity" class="admin-tab-panel">
+          <h2 style="font-size:1.75rem;font-weight:800;margin-bottom:1.25rem;">Local User Activity</h2>
+          <div class="ca-table-wrap">
+            <table class="ca-table">
+              <thead>
+                <tr>
+                  <th>User</th>
+                  <th>Action</th>
+                  <th>Timestamp</th>
+                  <th>Type</th>
+                </tr>
+              </thead>
+              <tbody id="admin-activity-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Settings -->
+        <div id="admin-panel-settings" class="admin-tab-panel">
+          <h2 style="font-size:1.75rem;font-weight:800;margin-bottom:1.25rem;">System Settings</h2>
+          <div class="ca-card" style="max-width:580px;display:flex;flex-direction:column;gap:1.15rem;">
+            <div>
+              <label for="admin-setting-title" class="inspector-stat-label" style="display:block;margin-bottom:0.4rem;">SITE TITLE</label>
+              <input type="text" id="admin-setting-title" class="ca-input" style="padding-left:0.9rem;" value="CodeAtlas — Explore the Programming Language Universe" />
+            </div>
+            <button type="button" id="btn-admin-save-settings" class="btn btn-primary btn-sm">Save Settings to localStorage</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <section id="view-lang-profile" class="ca-view">
+    <div class="ca-container" style="padding-top:2.5rem;padding-bottom:5rem;" id="lang-profile-container"></div>
+  </section>
+
+  <script src="js/data.js"></script>
+  <script src="js/atlas.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interactive Architecture Quiz — CodeAtlas</title>
+  <meta name="description" content="Test your knowledge of programming language paradigms, history, execution models, and typing disciplines." />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2305070D' stroke='%2300F0FF' stroke-width='3'/%3E%3Ctext x='50%25' y='54%25' text-anchor='middle' dominant-baseline='middle' fill='%2300F0FF' font-family='monospace' font-weight='bold' font-size='24'%3E%26lt;/%26gt;%3C/text%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/responsive.css" />
+</head>
+<body data-initial-view="quiz">
+  <header class="ca-navbar" role="banner">
+    <div class="ca-navbar-inner">
+      <a href="index.html" class="ca-brand"><span class="ca-brand-mark">&lt;/&gt;</span><span>Code<span class="ca-brand-atlas">Atlas</span></span></a>
+      <nav aria-label="Primary Navigation">
+        <ul class="ca-nav-links">
+          <li><a href="index.html" class="ca-nav-link">Home</a></li>
+          <li><a href="atlas.html" class="ca-nav-link">Atlas</a></li>
+          <li><a href="languages.html" class="ca-nav-link">Languages</a></li>
+          <li><a href="timeline.html" class="ca-nav-link">Timeline</a></li>
+          <li><a href="compare.html" class="ca-nav-link">Compare</a></li>
+          <li><a href="explore.html" class="ca-nav-link">Explore</a></li>
+          <li><a href="quiz.html" class="ca-nav-link active">Quiz</a></li>
+        </ul>
+      </nav>
+      <div class="ca-nav-actions ca-nav-actions-desktop" data-auth-slot></div>
+    </div>
+  </header>
+
+  <main id="view-quiz" class="ca-view active">
+    <div class="ca-container" style="padding-top:3.5rem;padding-bottom:5rem;">
+      <div style="text-align:center;margin-bottom:2.25rem;">
+        <div class="eyebrow" style="margin-bottom:0.5rem;">KNOWLEDGE VERIFICATION</div>
+        <h1 style="font-size:clamp(1.85rem,3vw,2.65rem);font-weight:800;">CodeAtlas Telemetry Quiz</h1>
+      </div>
+      <div id="quiz-stage-container"></div>
+    </div>
+  </main>
+
+  <script src="js/data.js"></script>
+  <script src="js/atlas.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
